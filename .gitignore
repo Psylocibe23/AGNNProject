@@ -1,0 +1,19 @@
+# Byte-compiled / caches
+__pycache__/
+*.py[cod]
+*.so
+
+# VS Code
+.vscode/
+
+# Python venv
+agnn_env/
+
+# Datasets / logs / checkpoints
+datasets/
+experiments/
+*.pth
+*.pt
+
+# Environment files
+.env

@@ -12,7 +12,7 @@ class DeepLabV3Backbone(nn.Module):
         self.backbone = dlv3.backbone
         # Pyramid Pooling (ASPP) module
         self.aspp = dlv3.classifier[0]  # Outputs 256 channels
-        self.conv = dlv3.classifier[1]  # 3x3 convolution
+        self.conv = dlv3.classifier[1]  # 3x3 convolution (256, 256)
         self.bn_relu = nn.Sequential(
             dlv3.classifier[2],
             dlv3.classifier[3]
@@ -33,6 +33,6 @@ class DeepLabV3Backbone(nn.Module):
 if __name__=='__main__':
     # 1) Instantiate the model
     model = deeplabv3_resnet50(pretrained=True)
-    
+
     # 2) Print the entire architecture
     print(model)

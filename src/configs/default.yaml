@@ -1,0 +1,6 @@
+# Device
+device: cuda
+
+# Model parameters
+model:
+ hidden_channels = 256

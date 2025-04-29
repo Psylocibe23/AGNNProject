@@ -1,0 +1,14 @@
+certifi==2022.12.7
+charset-normalizer==2.1.1
+idna==3.4
+numpy==1.26.4
+pillow==11.0.0
+pydensecrf2==1.1
+requests==2.28.1
+simsimd==6.2.1
+stringzilla==3.12.5
+torch==1.13.1+cu116
+torchaudio==0.13.1+cu116
+torchvision==0.14.1+cu116
+typing_extensions==4.12.2
+urllib3==1.26.13

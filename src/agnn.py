@@ -108,4 +108,3 @@ if __name__=="__main__":
     dummy = torch.randn(2, 5, 3, 473, 473)  # e.g. B=2, N=5 frames of 473×473
     masks = model(dummy)                   # expect (2,5,1,60,60)
     print(masks.shape)
-

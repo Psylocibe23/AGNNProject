@@ -7,7 +7,8 @@ class DeepLabV3Backbone(nn.Module):
     def __init__(self, pretrained=True):
         super().__init__()
         # Load full DeepLabV3 model
-        dlv3 = deeplabv3_resnet50(pretrained=pretrained, progress=True)
+        weights = DeepLabV3_ResNet50_Weights.DEFAULT if pretrained else None
+        dlv3 = deeplabv3_resnet50(weights=weights, progress=True)
         # Take resnet-50 backbone (conv1, layer1 to layer4)
         self.backbone = dlv3.backbone
         # Pyramid Pooling (ASPP) module
@@ -20,19 +21,11 @@ class DeepLabV3Backbone(nn.Module):
 
     def forward(self, x):
         """
-            given as input a batch of video frames x = (B, C, H, W), returns the nodes embeddings
-            each node is a video frame in our AGNN
+        Given as input a batch of video frames x = (B, C, H, W), returns the nodes embeddings
+        each node is a video frame in our AGNN
         """
         features = self.backbone(x)['out']  # (B, 2048, H/8, W/8)
         features = self.aspp(features)  # (B, 256, H/8, W/8)
         features = self.conv(features)  # (B, 256, H/8, W/8)
         features = self.bn_relu(features)  # (B, 256, H/8, W/8)
         return features
-
-
-if __name__=='__main__':
-    # 1) Instantiate the model
-    model = deeplabv3_resnet50(pretrained=True)
-
-    # 2) Print the entire architecture
-    print(model)

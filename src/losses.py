@@ -20,10 +20,11 @@ def weighted_bce_loss(preds, targets, eps=1e-6):
     B, _, H, W = targets.shape
     N = H * W
 
-    fg_ratio = targets.view(B, -1).sum(dim=1) # (B,)
+    fg_ratio = targets.view(B, -1).sum(dim=1) # (B,), is one scalar per image
     eta    = fg_ratio / N 
 
     # Compute weights for foreground and background
+    # Reshape in order to multiply element-wise against the prediciton tensor
     w_forg = (1.0 - eta).view(B, 1, 1, 1)           
     w_back = eta.view(B, 1, 1, 1)   
 

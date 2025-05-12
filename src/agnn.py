@@ -105,6 +105,7 @@ class AGNN(nn.Module):
     
 if __name__=="__main__":
     model = AGNN(hidden_channels=256, num_iterations=3)
-    dummy = torch.randn(2, 5, 3, 473, 473)  # e.g. B=2, N=5 frames of 473×473
-    masks = model(dummy)                   # expect (2,5,1,60,60)
-    print(masks.shape)
+    with torch.no_grad():
+        dummy = torch.randn(1, 2, 3, 64, 64)  # B=1, N=2 frames, 64×64
+        masks = model(dummy)                   # expect (1,2,1,8,8)
+        print(masks.shape)

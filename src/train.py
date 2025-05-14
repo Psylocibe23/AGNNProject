@@ -151,18 +151,20 @@ def main():
     # Training loop
     for epoch in range(1, cfg['max_epochs'] + 1):
         train_loss = train_one_epoch(epoch)
-        val_loss = validate(epoch)
+        val_loss   = validate(epoch)
         scheduler.step()
 
-        if epoch == cfg['max_epochs']:
-            checkpoint = {
-                'epoch': epoch,
+        # save every k epochs:
+        if epoch % cfg['save_every'] == 0:
+            ckpt = {
+                'epoch':       epoch,
                 'model_state': model.state_dict(),
-                'opt_state': optimizer.state_dict(),
-                'val_loss': val_loss
+                'opt_state':   optimizer.state_dict(),
+                'val_loss':    val_loss
             }
-            torch.save(checkpoint, os.path.join(cfg["save_dir"], f"checkpoint_final.pth"))
-            print(f"Saved final checkpoint at epoch {epoch}")
+            fname = f"checkpoint_epoch{epoch}.pth"
+            torch.save(ckpt, os.path.join(cfg["save_dir"], fname))
+            print(f" → Saved checkpoint: {fname}")
 
     writer.close()
 

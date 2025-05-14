@@ -12,8 +12,8 @@ yto_root:   /mnt/c/Users/sprea/Desktop/pythonProject/AGNNProject/Datasets/youtub
 log_dir:   runs/agnn_experiment
 save_dir:  checkpoints
 # only save at final epoch to avoid intermediates
-max_epochs:    50
-save_every:    50 
+max_epochs:    5
+save_every:    5
 
 # DataLoader params
 num_workers: 8

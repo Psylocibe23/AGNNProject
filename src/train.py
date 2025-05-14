@@ -9,6 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 from agnn import AGNN
 from losses import weighted_bce_loss
 from dataloader import get_dataloader
+import torch.nn.functional as F
 
 
 def set_seed(seed):
@@ -56,8 +57,8 @@ def main():
     model = AGNN(hidden_channels=cfg['model']['hidden_channels'], num_iterations=cfg['model']['num_iterations']).to(device)
 
     # Optimizer and scheduler
-    optimizer = torch.optim.AdamW(model.parameters(), lr = cfg['optimizer']['lr'], weight_decay=cfg['optimizer']['weight_decay'])
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=cfg['scheduler']['milestones'], gamma=cfg['shceduler']['gamma'])
+    optimizer = torch.optim.AdamW(model.parameters(), lr = float(cfg['optimizer']['lr']), weight_decay=float(cfg['optimizer']['weight_decay']))
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=cfg['scheduler']['milestones'], gamma=cfg['scheduler']['gamma'])
 
     # Loggin and checkpoints
     writer = SummaryWriter(log_dir=cfg['log_dir'])
@@ -71,10 +72,27 @@ def main():
         running_loss = 0.0
 
         for batch_idx, (frames, masks) in enumerate(train_loader):
-            frames = frames.to(device)  # (B, N, 3, H, W)
-            masks = masks.to(device)  # (B, N, 1, H, W)
-            preds = model(frames)  # (B, N, 1, H, W)
-            loss = weighted_bce_loss(preds, masks)
+            # frames: (B, N, 3, 473, 473)
+            # masks:  (B, N, 1, 473, 473)
+            frames = frames.to(device)
+            masks  = masks.to(device)
+
+            # 1) forward
+            preds = model(frames)  # (B, N, 1, H, W), e.g. H=W=60
+
+            B, N, C, H, W = preds.shape
+
+            # 2) flatten preds to (B*N, C, H, W)
+            preds_flat = preds.view(B * N, C, H, W)
+
+            # 3) flatten masks to (B*N, C, 473, 473)
+            masks_flat = masks.view(B * N, C, masks.shape[-2], masks.shape[-1])
+
+            # 4) downsample masks to (B*N, C, H, W)
+            masks_flat = F.interpolate(masks_flat, size=(H, W), mode='nearest')
+
+            # 5) compute loss
+            loss = weighted_bce_loss(preds_flat, masks_flat)
 
             optimizer.zero_grad()
             loss.backward()
@@ -82,11 +100,14 @@ def main():
 
             running_loss += loss.item()
             if batch_idx % 10 == 0:
-                writer.add_scalar('train/batch_loss', loss.item(), epoch * len(train_loader) + batch_idx)
+                writer.add_scalar(
+                    'train/batch_loss',
+                    loss.item(),
+                    epoch * len(train_loader) + batch_idx
+                )
 
         avg_loss = running_loss / len(train_loader)
         writer.add_scalar('train/epoch_loss', avg_loss, epoch)
-
         return avg_loss
     
     # Validaiton helper
@@ -96,16 +117,32 @@ def main():
         val_loss = 0.0
 
         for batch_idx, (frames, masks) in enumerate(val_loader):
-            frames = frames.to(device)
-            masks  = masks.to(device)
-            preds = model(frames)
-            loss  = weighted_bce_loss(preds, masks)
+            frames = frames.to(device)     # (B, N, 3, 473, 473)
+            masks  = masks.to(device)      # (B, N, 1, 473, 473)
+            preds  = model(frames)         # (B, N, 1, Hf, Wf)
+
+            B, N, C, Hf, Wf = preds.shape
+
+            # 1) flatten preds to (B*N, C, Hf, Wf)
+            preds_flat = preds.view(B * N, C, Hf, Wf)
+
+            # 2) flatten masks to (B*N, C, 473, 473)
+            _, _, _, Hm, Wm = masks.shape
+            masks_flat = masks.view(B * N, C, Hm, Wm)
+
+            # 3) downsample masks to (B*N, C, Hf, Wf)
+            masks_flat = F.interpolate(masks_flat, size=(Hf, Wf), mode='nearest')
+
+            # 4) compute loss
+            loss = weighted_bce_loss(preds_flat, masks_flat)
             val_loss += loss.item()
 
+        # (optional) log sample images once
         if batch_idx == 0:
-            writer.add_images('val/frames', frames[:, 0], epoch, dataformats='NCHW')
-            writer.add_images('val/get_mask', masks[:, 0], epoch, dataformats='NCHW')
+            writer.add_images('val/frames',   frames[:, 0], epoch, dataformats='NCHW')
+            writer.add_images('val/get_mask', masks_flat.view(B, N, C, Hf, Wf)[:, 0], epoch, dataformats='NCHW')
             writer.add_images('val/pred_mask', preds[:, 0], epoch, dataformats='NCHW')
+            writer.flush()
 
         avg_val_loss = val_loss / len(val_loader)
         writer.add_scalar("val/epoch_loss", avg_val_loss, epoch)
@@ -128,3 +165,8 @@ def main():
             print(f"Saved final checkpoint at epoch {epoch}")
 
     writer.close()
+
+
+
+if __name__=='__main__':
+    main()

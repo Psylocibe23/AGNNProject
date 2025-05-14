@@ -22,6 +22,7 @@ def apply_dense_crf(image, mask_prob, n_iters=10, sxy_gaussian=(3, 3), sxy_bilat
     # Pairwise bilateral potentials (appearance)
     d.addPairwiseBilateral(sxy=sxy_bilateral, srgb=srgb_bilateral, rgbim=image, compat=10)
 
-    Q = d.inference(n_iters)
+    # Mean-field inference
+    Q = d.inference(n_iters)  # list of two H*W arrays: [bg_scores, fg_scores]
     refined = np.array(Q).reshape((2, H, W))[1]
     return refined

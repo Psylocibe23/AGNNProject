@@ -18,7 +18,7 @@ class VideoSegDataset(Dataset):
       Annotations/480p/{video}/frame_xxxxx.png
       ImageSets/{split}.txt         # e.g. train.txt, val.txt
     """
-    def __init__(self, root_dir, split='train', num_frames=3, frame_size=(473, 473), transform=None):
+    def __init__(self, root_dir, split='train', num_frames=3, frame_size=(473, 473), transform=None, train_mode=True):
         self.root_dir = root_dir
         self.num_frames = num_frames
         self.frame_size = frame_size
@@ -27,6 +27,7 @@ class VideoSegDataset(Dataset):
             transforms.Normalize([0.485,0.456,0.406],
                                  [0.229,0.224,0.225])
         ])
+        self.train_mode = train_mode
 
         # read the list of video names for this split
         list_file = os.path.join(self.root_dir, 'ImageSets', f"{split}.txt") 
@@ -61,11 +62,10 @@ class VideoSegDataset(Dataset):
             for vid in lines:
                 img_path  = os.path.join(root_dir, 'JPEGImages', f"{vid}.jpg")
                 xml_path  = os.path.join(root_dir, 'Annotations',  f"{vid}.xml")
-        
-                # sanity check
+
                 if not os.path.isfile(img_path) or not os.path.isfile(xml_path):
                     raise RuntimeError(f"No data for video '{vid}' in '{root_dir}'")
-        
+
                 # wrap them into lists so __getitem__ can sample num_frames times
                 self.samples.append(([img_path], [xml_path]))
 
@@ -79,12 +79,22 @@ class VideoSegDataset(Dataset):
         imgs, masks = self.samples[idx]
         N, total = self.num_frames, len(imgs)
 
-        # pick N frames uniformly
-        if total >= N:
-            step = total / N
-            indices = [int(i*step) for i in range(N)]
+        # For training pick N frames randomly
+        if self.train_mode:
+            segment_size = total // N
+            indices = []
+            for k in range(N):
+                start = k * segment_size
+                end = (k+1) * segment_size if k < (N - 1) else total
+                index = np.random.randint(start, end)
+                indices.append(index)
         else:
-            indices = [i % total for i in range(N)]
+            # pick N frames uniformly
+            if total >= N:
+                step = total / N
+                indices = [int(i*step) for i in range(N)]
+            else:
+                indices = [i % total for i in range(N)]
 
         frames, segs = [], []
         for i in indices:
@@ -141,26 +151,8 @@ class VideoSegDataset(Dataset):
         return frames, segs
     
     
-def get_dataloader(root_dir, split, batch_size, num_frames, shuffle, num_workers, pin_memory):
-    ds = VideoSegDataset(root_dir=root_dir, split=split, num_frames=num_frames)
+def get_dataloader(root_dir, split, batch_size, num_frames, shuffle, num_workers, pin_memory, train_mode=False):
+    ds = VideoSegDataset(root_dir=root_dir, split=split, num_frames=num_frames, train_mode=train_mode)
 
     return DataLoader(ds, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory, drop_last=True)
-
-
-if __name__ == "__main__":
-    # adjust these paths to match your cleaned tree:
-    davis_root = "/mnt/c/Users/sprea/Desktop/pythonProject/AGNNProject/Datasets/davis/DAVIS"
-    yto_root   = "/mnt/c/Users/sprea/Desktop/pythonProject/AGNNProject/Datasets/youtube-objects/YTOdevkit/YTO"
-
-    print("→ Testing DAVIS loader")
-    ds = VideoSegDataset(davis_root, split="train", num_frames=3)
-    print(" length:", len(ds))
-    f, m = ds[0]
-    print(" sample shapes:", f.shape, m.shape)
-
-    print("\n→ Testing YTO loader")
-    ds2 = VideoSegDataset(yto_root, split="train", num_frames=3)
-    print(" length:", len(ds2))
-    f2, m2 = ds2[0]
-    print(" sample shapes:", f2.shape, m2.shape)
     

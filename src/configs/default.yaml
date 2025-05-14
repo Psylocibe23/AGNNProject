@@ -1,6 +1,43 @@
+# Reproducibility
+seed: 42
+
 # Device
 device: cuda
 
-# Model parameters
+# Dataset roots
+davis_root: /mnt/c/Users/sprea/Desktop/pythonProject/AGNNProject/Datasets/davis/DAVIS
+yto_root:   /mnt/c/Users/sprea/Desktop/pythonProject/AGNNProject/Datasets/youtube-objects/YTOdevkit/YTO
+
+# Logging & checkpoints
+log_dir:   runs/agnn_experiment
+save_dir:  checkpoints
+# only save at final epoch to avoid intermediates
+max_epochs:    50
+save_every:    50 
+
+# DataLoader params
+num_workers: 8
+pin_memory:  true
+
+# Batching
+train_batch_size: 2
+val_batch_size:   1
+
+# Number of frames per sample
+num_frames_train: 3
+num_frames_val:   5
+
+# Model hyperparameters
 model:
- hidden_channels = 256
+  hidden_channels: 256
+  num_iterations:  3
+
+# Optimizer settings
+optimizer:
+  lr:            1e-4
+  weight_decay:  1e-5
+
+# LR scheduler: drop by gamma at each milestone
+scheduler:
+  milestones: [30, 40]
+  gamma:      0.1

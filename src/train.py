@@ -19,7 +19,7 @@ def set_seed(seed):
     torch.cuda.manual_seed_all(seed)
 
 
-def main():
+def train():
     # Load config file
     with open("configs/default.yaml", 'r') as f:
         cfg = yaml.safe_load(f)
@@ -42,13 +42,13 @@ def main():
                                   train_mode=True)
     
     val_loader = get_dataloader(root_dir=cfg['davis_root'],
-                              split='val',
-                              batch_size=cfg['val_batch_size'],
-                              num_frames=cfg['num_frames_val'],
-                              shuffle=False,
-                              num_workers=cfg['num_workers'],
-                              pin_memory=cfg['pin_memory'],
-                              train_mode=False)
+                                split='val',
+                                batch_size=cfg['val_batch_size'],
+                                num_frames=cfg['num_frames_val'],
+                                shuffle=False,
+                                num_workers=cfg['num_workers'],
+                                pin_memory=cfg['pin_memory'],
+                                train_mode=False)
     
     print(f"Train batches : {len(train_loader)}")
     print(f"Valid batches : {len(val_loader)}")
@@ -121,6 +121,16 @@ def main():
             masks  = masks.to(device)      # (B, N, 1, 473, 473)
             preds  = model(frames)         # (B, N, 1, Hf, Wf)
 
+            # (optional) log sample images once
+            if batch_idx == 0:
+                # frames: (B, N, 3, H, W)
+                # masks:  (B, N, 1, H, W)
+                # preds:  (B, N, 1, H, W)
+                writer.add_images('val/frames',   frames[:,0], epoch, dataformats='NCHW')
+                writer.add_images('val/gt_mask',  masks[:,0],  epoch, dataformats='NCHW')
+                writer.add_images('val/pred_mask',preds[:,0],  epoch, dataformats='NCHW')
+                writer.flush()
+
             B, N, C, Hf, Wf = preds.shape
 
             # 1) flatten preds to (B*N, C, Hf, Wf)
@@ -136,13 +146,6 @@ def main():
             # 4) compute loss
             loss = weighted_bce_loss(preds_flat, masks_flat)
             val_loss += loss.item()
-
-        # (optional) log sample images once
-        if batch_idx == 0:
-            writer.add_images('val/frames',   frames[:, 0], epoch, dataformats='NCHW')
-            writer.add_images('val/get_mask', masks_flat.view(B, N, C, Hf, Wf)[:, 0], epoch, dataformats='NCHW')
-            writer.add_images('val/pred_mask', preds[:, 0], epoch, dataformats='NCHW')
-            writer.flush()
 
         avg_val_loss = val_loss / len(val_loader)
         writer.add_scalar("val/epoch_loss", avg_val_loss, epoch)
@@ -171,4 +174,4 @@ def main():
 
 
 if __name__=='__main__':
-    main()
+    train()

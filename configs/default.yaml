@@ -11,9 +11,10 @@ yto_root:   /mnt/c/Users/sprea/Desktop/pythonProject/AGNNProject/Datasets/youtub
 # Logging & checkpoints
 log_dir:   runs/agnn_experiment
 save_dir:  checkpoints
-# only save at final epoch to avoid intermediates
+
+# Epochs and checkpoints schedule
 max_epochs:    50
-save_every:    5
+save_every:    10
 
 # DataLoader params
 num_workers: 8
@@ -25,7 +26,7 @@ val_batch_size:   1
 
 # Number of frames per sample
 num_frames_train: 3
-num_frames_val:   5
+num_frames_test:   5
 
 # Model hyperparameters
 model:
@@ -41,3 +42,8 @@ optimizer:
 scheduler:
   milestones: [30, 40]
   gamma:      0.1
+
+# Checkpoint and output directory for tests
+test:
+  checkpoint: "checkpoints/checkpoint_epoch50.pth"
+  out_dir:    "outputs"

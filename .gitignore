@@ -17,3 +17,11 @@ experiments/
 
 # Environment files
 .env
+
+# ignore eval subrepo, outputs and logs
+davis2017-evaluation/
+
+# ignore eval subrepo, outputs and logs
+davis2017-evaluation/
+outputs/
+runs/

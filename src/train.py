@@ -3,14 +3,13 @@ import yaml
 import random
 import numpy as np
 import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
+import torch.nn.functional as F
+from torch.optim import AdamW
+from torch.optim.lr_scheduler import LinearLR, MultiStepLR, SequentialLR
 from torch.utils.tensorboard import SummaryWriter
 from agnn import AGNN
 from losses import weighted_bce_loss
 from dataloader import get_dataloader
-import torch.nn.functional as F
-
 
 def set_seed(seed):
     random.seed(seed)
@@ -18,160 +17,159 @@ def set_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
+def train_one_epoch(model, optimizer, train_loader, writer, epoch, device):
+    model.train()
+    running_loss = 0.0
+    for batch_idx, (frames, masks) in enumerate(train_loader):
+        frames = frames.to(device)
+        masks  = masks.to(device)
+
+        preds = model(frames)  # (B, N, 1, H, W)
+        B, N, C, H, W = preds.shape
+        preds_flat = preds.view(B*N, C, H, W)
+        masks_flat = masks.view(B*N, C, masks.shape[-2], masks.shape[-1])
+        masks_flat = F.interpolate(masks_flat, size=(H,W), mode='nearest')
+
+        loss = weighted_bce_loss(preds_flat, masks_flat)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item()
+        if batch_idx % 10 == 0:
+            writer.add_scalar(
+                'train/batch_loss',
+                loss.item(),
+                epoch * len(train_loader) + batch_idx
+            )
+
+    avg_loss = running_loss / len(train_loader)
+    writer.add_scalar('train/epoch_loss', avg_loss, epoch)
+    return avg_loss
+
+@torch.no_grad()
+def validate(model, val_loader, writer, epoch, device):
+    model.eval()
+    val_loss = 0.0
+
+    for batch_idx, (frames, masks) in enumerate(val_loader):
+        frames = frames.to(device)
+        masks  = masks.to(device)
+
+        preds = model(frames)
+        if batch_idx == 0:
+            # log the first batch of images & masks
+            writer.add_images('val/frames',   frames[:,0], epoch, dataformats='NCHW')
+            writer.add_images('val/gt_mask',  masks[:,0],  epoch, dataformats='NCHW')
+            writer.add_images('val/pred_mask',preds[:,0],  epoch, dataformats='NCHW')
+            writer.flush()
+
+        B, N, C, Hf, Wf = preds.shape
+        preds_flat = preds.view(B*N, C, Hf, Wf)
+        _, _, _, Hm, Wm = masks.shape
+        masks_flat = masks.view(B*N, C, Hm, Wm)
+        masks_flat = F.interpolate(masks_flat, size=(Hf,Wf), mode='nearest')
+
+        loss = weighted_bce_loss(preds_flat, masks_flat)
+        val_loss += loss.item()
+
+    avg_val_loss = val_loss / len(val_loader)
+    writer.add_scalar("val/epoch_loss", avg_val_loss, epoch)
+    return avg_val_loss
 
 def train():
-    # Load config file
+    # --- load config ---
     with open("configs/default.yaml", 'r') as f:
         cfg = yaml.safe_load(f)
 
-    # Set random seed
-    set_seed(cfg.get('seed', 42))
-
-    # Set device
-    device = torch.device(cfg["device"] if torch.cuda.is_available() else 'cpu')
+    set_seed(cfg.get("seed", 42))
+    device = torch.device(cfg["device"] if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # Build dataloaders
-    train_loader = get_dataloader(root_dir=cfg['davis_root'],
-                                  split='train',
-                                  batch_size=cfg['train_batch_size'],
-                                  num_frames=cfg['num_frames_train'],
-                                  shuffle=True,
-                                  num_workers=cfg['num_workers'],
-                                  pin_memory=cfg['pin_memory'],
-                                  train_mode=True)
-    
-    val_loader = get_dataloader(root_dir=cfg['davis_root'],
-                                split='val',
-                                batch_size=cfg['val_batch_size'],
-                                num_frames=cfg['num_frames_val'],
-                                shuffle=False,
-                                num_workers=cfg['num_workers'],
-                                pin_memory=cfg['pin_memory'],
-                                train_mode=False)
-    
-    print(f"Train batches : {len(train_loader)}")
-    print(f"Valid batches : {len(val_loader)}")
+    # --- dataloaders ---
+    train_loader = get_dataloader(
+        root_dir=cfg["davis_root"], split="train",
+        batch_size=cfg["train_batch_size"], num_frames=cfg["num_frames_train"],
+        shuffle=True, num_workers=cfg["num_workers"],
+        pin_memory=cfg["pin_memory"], train_mode=True
+    )
+    val_loader = get_dataloader(
+        root_dir=cfg["davis_root"], split="val",
+        batch_size=cfg["val_batch_size"], num_frames=cfg["num_frames_test"],
+        shuffle=False, num_workers=cfg["num_workers"],
+        pin_memory=cfg["pin_memory"], train_mode=False
+    )
+    print(f"Train batches: {len(train_loader)}   Val batches: {len(val_loader)}")
 
-    # Build model
-    model = AGNN(hidden_channels=cfg['model']['hidden_channels'], num_iterations=cfg['model']['num_iterations']).to(device)
+    # --- model & optimizer ---
+    model = AGNN(
+        hidden_channels=cfg["model"]["hidden_channels"],
+        num_iterations=cfg["model"]["num_iterations"]
+    ).to(device)
+    optimizer = AdamW(
+        model.parameters(),
+        lr=float(cfg["optimizer"]["lr"]),
+        weight_decay=float(cfg["optimizer"]["weight_decay"])
+    )
 
-    # Optimizer and scheduler
-    optimizer = torch.optim.AdamW(model.parameters(), lr = float(cfg['optimizer']['lr']), weight_decay=float(cfg['optimizer']['weight_decay']))
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=cfg['scheduler']['milestones'], gamma=cfg['scheduler']['gamma'])
+    # --- scheduler: linear warmup → MultiStep decay ---
+    warmup_epochs = int(cfg["scheduler"]["warmup_epochs"])
+    milestones = [int(x) for x in cfg["scheduler"]["milestones"]]
+    gamma = float(cfg["scheduler"]["gamma"])
 
-    # Loggin and checkpoints
-    writer = SummaryWriter(log_dir=cfg['log_dir'])
-    os.makedirs(cfg['save_dir'], exist_ok=True)
+    warmup_sched = LinearLR(
+        optimizer,
+        start_factor=0.1, end_factor=1.0,
+        total_iters=warmup_epochs
+    )
+    decay_sched = MultiStepLR(
+        optimizer, milestones=milestones, gamma=gamma
+    )
+    scheduler = SequentialLR(
+        optimizer,
+        schedulers=[warmup_sched, decay_sched],
+        milestones=[warmup_epochs]
+    )
 
-    best_val_loss = float('inf')
+    # --- logging & checkpoints setup ---
+    writer = SummaryWriter(log_dir=cfg["log_dir"])
+    os.makedirs(cfg["save_dir"], exist_ok=True)
 
-    # Training helper
-    def train_one_epoch(epoch):
-        model.train()
-        running_loss = 0.0
+    best_val = float("inf")
+    patience = cfg["early_stopping"]["patience"]
+    no_improve = 0
 
-        for batch_idx, (frames, masks) in enumerate(train_loader):
-            # frames: (B, N, 3, 473, 473)
-            # masks:  (B, N, 1, 473, 473)
-            frames = frames.to(device)
-            masks  = masks.to(device)
+    # --- main training loop ---
+    for epoch in range(1, cfg["max_epochs"] + 1):
+        tl = train_one_epoch(model, optimizer, train_loader, writer, epoch, device)
+        vl = validate(model, val_loader, writer, epoch, device)
 
-            # 1) forward
-            preds = model(frames)  # (B, N, 1, H, W), e.g. H=W=60
-
-            B, N, C, H, W = preds.shape
-
-            # 2) flatten preds to (B*N, C, H, W)
-            preds_flat = preds.view(B * N, C, H, W)
-
-            # 3) flatten masks to (B*N, C, 473, 473)
-            masks_flat = masks.view(B * N, C, masks.shape[-2], masks.shape[-1])
-
-            # 4) downsample masks to (B*N, C, H, W)
-            masks_flat = F.interpolate(masks_flat, size=(H, W), mode='nearest')
-
-            # 5) compute loss
-            loss = weighted_bce_loss(preds_flat, masks_flat)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            running_loss += loss.item()
-            if batch_idx % 10 == 0:
-                writer.add_scalar(
-                    'train/batch_loss',
-                    loss.item(),
-                    epoch * len(train_loader) + batch_idx
-                )
-
-        avg_loss = running_loss / len(train_loader)
-        writer.add_scalar('train/epoch_loss', avg_loss, epoch)
-        return avg_loss
-    
-    # Validaiton helper
-    @torch.no_grad()
-    def validate(epoch):
-        model.eval()
-        val_loss = 0.0
-
-        for batch_idx, (frames, masks) in enumerate(val_loader):
-            frames = frames.to(device)     # (B, N, 3, 473, 473)
-            masks  = masks.to(device)      # (B, N, 1, 473, 473)
-            preds  = model(frames)         # (B, N, 1, Hf, Wf)
-
-            # (optional) log sample images once
-            if batch_idx == 0:
-                # frames: (B, N, 3, H, W)
-                # masks:  (B, N, 1, H, W)
-                # preds:  (B, N, 1, H, W)
-                writer.add_images('val/frames',   frames[:,0], epoch, dataformats='NCHW')
-                writer.add_images('val/gt_mask',  masks[:,0],  epoch, dataformats='NCHW')
-                writer.add_images('val/pred_mask',preds[:,0],  epoch, dataformats='NCHW')
-                writer.flush()
-
-            B, N, C, Hf, Wf = preds.shape
-
-            # 1) flatten preds to (B*N, C, Hf, Wf)
-            preds_flat = preds.view(B * N, C, Hf, Wf)
-
-            # 2) flatten masks to (B*N, C, 473, 473)
-            _, _, _, Hm, Wm = masks.shape
-            masks_flat = masks.view(B * N, C, Hm, Wm)
-
-            # 3) downsample masks to (B*N, C, Hf, Wf)
-            masks_flat = F.interpolate(masks_flat, size=(Hf, Wf), mode='nearest')
-
-            # 4) compute loss
-            loss = weighted_bce_loss(preds_flat, masks_flat)
-            val_loss += loss.item()
-
-        avg_val_loss = val_loss / len(val_loader)
-        writer.add_scalar("val/epoch_loss", avg_val_loss, epoch)
-        return avg_val_loss
-    
-    # Training loop
-    for epoch in range(1, cfg['max_epochs'] + 1):
-        train_loss = train_one_epoch(epoch)
-        val_loss   = validate(epoch)
         scheduler.step()
 
-        # save every k epochs:
-        if epoch % cfg['save_every'] == 0:
+        # early stopping logic
+        if vl < best_val:
+            best_val = vl
+            no_improve = 0
+        else:
+            no_improve += 1
+            if no_improve >= patience:
+                print(f"→ Early stopping at epoch {epoch} (patience={patience})")
+                break
+
+        # periodic checkpointing
+        if epoch % cfg["save_every"] == 0:
             ckpt = {
-                'epoch':       epoch,
-                'model_state': model.state_dict(),
-                'opt_state':   optimizer.state_dict(),
-                'val_loss':    val_loss
+                "epoch": epoch,
+                "model_state": model.state_dict(),
+                "opt_state": optimizer.state_dict(),
+                "val_loss": vl
             }
             fname = f"checkpoint_epoch{epoch}.pth"
             torch.save(ckpt, os.path.join(cfg["save_dir"], fname))
-            print(f" → Saved checkpoint: {fname}")
+            print(f"→ Saved checkpoint: {fname}")
 
     writer.close()
 
-
-
-if __name__=='__main__':
+if __name__ == "__main__":
     train()

@@ -2,7 +2,6 @@ import numpy as np
 import pydensecrf.densecrf as dcrf
 from pydensecrf.utils import unary_from_softmax, create_pairwise_bilateral
 
-
 def apply_dense_crf(image, mask_prob, n_iters=10, sxy_gaussian=(3, 3), sxy_bilateral=(80, 80), srgb_bilateral=(13, 13, 13)):
     """
     image: HxWx3 uint8 (original RGB frame)

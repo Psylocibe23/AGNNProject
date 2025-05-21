@@ -91,8 +91,7 @@ def process_videos(cfg, model, device):
 
             input_tensor = torch.stack(frames, dim=0).unsqueeze(0).to(device)  # (1, N0, 3, H, W)
             with torch.no_grad():
-                out = model(input_tensor)  # (1, N0, 1, Hf, Wf)
-                prob = torch.sigmoid(out).cpu().numpy()[0, :, 0, :, :]  # (N0, Hf, Wf)
+                prob = model(input_tensor).cpu().numpy()[0,:,0,:,:]
 
             for i, frame_idx in enumerate(indices):
                 prob_map = prob[i]
@@ -101,19 +100,33 @@ def process_videos(cfg, model, device):
                 H_orig, W_orig = img_orig.shape[:2]
                 prob_up = cv2.resize(prob_map, (W_orig, H_orig))
 
-                # Build probability array for CRF [bg_prob, fg_prob]
+                # --- Debug: save raw binarized network output ---
+                raw_bin = (prob_up > 0.5).astype(np.uint8) * 255
+                raw_fname = f"{frame_idx:05d}_raw.png"
+                raw_path  = os.path.join(seq_out, raw_fname)
+                cv2.imwrite(raw_path, raw_bin)
+
+                # Print min/max of the raw probability
+                print(f"[{seq_name} frame {frame_idx}] raw prob min/max = "
+                      f"{prob_up.min():.3f}/{prob_up.max():.3f}")
+
+                # Build CRF input: [bg_prob, fg_prob]
                 mask_prob = np.stack([1 - prob_up, prob_up], axis=0).astype(np.float32)
-                # Ensure contiguous memory layout
                 mask_prob = np.ascontiguousarray(mask_prob)
 
-                # Apply dense CRF at original resolution
+                # Apply dense CRF
                 refined = apply_dense_crf(img_orig, mask_prob)
 
-                # Threshold and save
-                bin_mask = (refined > 0.5).astype(np.uint8) * 255
-                fname = f"{frame_idx:05d}.png"
-                out_path = os.path.join(seq_out, fname)
-                cv2.imwrite(out_path, bin_mask)
+                # Print min/max of the CRF output
+                print(f"[{seq_name} frame {frame_idx}] refined min/max = "
+                      f"{refined.min():.3f}/{refined.max():.3f}")
+
+                # Threshold & save the CRF result
+                crf_bin = (refined > 0.5).astype(np.uint8) * 255
+                crf_fname = f"{frame_idx:05d}.png"
+                crf_path  = os.path.join(seq_out, crf_fname)
+                cv2.imwrite(crf_path, crf_bin)
+
 
         print(f"Saved masks for sequence '{seq_name}' to {seq_out}\n")
 

@@ -57,17 +57,23 @@ class VideoSegDataset(Dataset):
             ]
 
         elif len(first_parts) == 1:
-            # YTO‐style (flat folders, single key‐frame per video)
+            # DAVIS‐unsupervised style: one sequence name per line, masks as PNGs
+            from glob import glob
             self.samples = []
             for vid in lines:
-                img_path  = os.path.join(root_dir, 'JPEGImages', f"{vid}.jpg")
-                xml_path  = os.path.join(root_dir, 'Annotations',  f"{vid}.xml")
+                img_dir = os.path.join(root_dir, 'JPEGImages', '480p', vid)
+                msk_dir = os.path.join(root_dir, 'Annotations_unsupervised', '480p', vid)
+        
+                imgs = sorted(glob(os.path.join(img_dir, '*.jpg')))
+                msks = sorted(glob(os.path.join(msk_dir, '*.png')))
+                if not imgs:
+                    raise RuntimeError(f"No images for video '{vid}' in '{img_dir}'")
+                if len(imgs) != len(msks):
+                    raise RuntimeError(f"Image/mask count mismatch for '{vid}': {len(imgs)} vs {len(msks)}")
+        
+                # each entry is a (list_of_image_paths, list_of_mask_paths)
+                self.samples.append((imgs, msks))
 
-                if not os.path.isfile(img_path) or not os.path.isfile(xml_path):
-                    raise RuntimeError(f"No data for video '{vid}' in '{root_dir}'")
-
-                # wrap them into lists so __getitem__ can sample num_frames times
-                self.samples.append(([img_path], [xml_path]))
 
         else:
             raise RuntimeError("Unrecognized split format")

@@ -136,26 +136,12 @@ def train():
     writer = SummaryWriter(log_dir=cfg["log_dir"])
     os.makedirs(cfg["save_dir"], exist_ok=True)
 
-    best_val = float("inf")
-    patience = cfg["early_stopping"]["patience"]
-    no_improve = 0
-
     # --- main training loop ---
     for epoch in range(1, cfg["max_epochs"] + 1):
         tl = train_one_epoch(model, optimizer, train_loader, writer, epoch, device)
         vl = validate(model, val_loader, writer, epoch, device)
 
         scheduler.step()
-
-        # early stopping logic
-        if vl < best_val:
-            best_val = vl
-            no_improve = 0
-        else:
-            no_improve += 1
-            if no_improve >= patience:
-                print(f"→ Early stopping at epoch {epoch} (patience={patience})")
-                break
 
         # periodic checkpointing
         if epoch % cfg["save_every"] == 0:

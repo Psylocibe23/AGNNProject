@@ -13,7 +13,7 @@ log_dir:   runs/agnn_experiment
 save_dir:  checkpoints
 
 # Epochs and checkpoints schedule
-max_epochs:    150
+max_epochs:    100
 save_every:    20
 
 # DataLoader params
@@ -41,14 +41,10 @@ optimizer:
 # LR scheduler: drop by gamma at each milestone
 scheduler:
   warmup_epochs: 5
-  milestones: [100, 150]
+  milestones: [50, 75, 90]
   gamma:      0.1
 
 # Checkpoint and output directory for tests
 test:
   checkpoint: "checkpoints/checkpoint_epoch20.pth"
   out_dir:    "outputs"
-
-# Early stopping
-early_stopping:
-  patience:  40

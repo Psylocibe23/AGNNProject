@@ -46,5 +46,5 @@ scheduler:
 
 # Checkpoint and output directory for tests
 test:
-  checkpoint: "checkpoints/checkpoint_epoch20.pth"
+  checkpoint: "checkpoints/checkpoint_epoch100.pth"
   out_dir:    "outputs"

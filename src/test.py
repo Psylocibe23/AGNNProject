@@ -6,6 +6,7 @@ import numpy as np
 from agnn import AGNN
 from dataloader import VideoSegDataset
 from utils import apply_dense_crf
+import math
 
 
 def load_config(config_path="configs/default.yaml"):
@@ -68,14 +69,14 @@ def process_videos(cfg, model, device):
         os.makedirs(seq_out, exist_ok=True)
 
         total = len(img_paths)
-        T = total // N0
+        T = math.ceil(total / N0)
         if T < 1:
             print(f"Skipping sequence '{seq_name}' with only {total} frames.")
             continue
         print(f"Processing sequence '{seq_name}': {T} subsets of {N0} frames")
 
         for t in range(T):
-            indices = [t + k * T for k in range(N0)]
+            indices = [min(t + k*T, total-1) for k in range(N0)]
 
             frames = []
             orig_imgs = []
@@ -122,7 +123,7 @@ def process_videos(cfg, model, device):
                       f"{refined.min():.3f}/{refined.max():.3f}")
 
                 # Threshold & save the CRF result
-                crf_bin = (refined > 0.5).astype(np.uint8) * 255
+                crf_bin = (refined > 0.6).astype(np.uint8) * 255
                 crf_fname = f"{frame_idx:05d}.png"
                 crf_path  = os.path.join(seq_out, crf_fname)
                 cv2.imwrite(crf_path, crf_bin)

@@ -158,6 +158,6 @@ def train():
             }
             fname = f"checkpoint_epoch{epoch}.pth"
             torch.save(ckpt, os.path.join(cfg["save_dir"], fname))
-            print(f"→ Saved checkpoint: {fname}")
+            print(f"Saved checkpoint: {fname}")
 
     writer.close()

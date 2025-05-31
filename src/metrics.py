@@ -35,10 +35,10 @@ def compute_region_similarity(gt_root, pred_root,video_list):
         pr_dir = os.path.join(pred_root, vid)
 
         if not os.path.isdir(gt_dir):
-            print(f"  Warning: ground-truth folder missing for '{vid}', skipping.")
+            print(f"Warning: ground-truth folder missing for '{vid}', skipping.")
             continue
         if not os.path.isdir(pr_dir):
-            print(f"  Warning: prediction folder missing for '{vid}', skipping.")
+            print(f"Warning: prediction folder missing for '{vid}', skipping.")
             continue
 
         frames = sorted(f for f in os.listdir(gt_dir) if f.endswith('.png'))
@@ -52,10 +52,10 @@ def compute_region_similarity(gt_root, pred_root,video_list):
             pr_mask = cv2.imread(pr_path, cv2.IMREAD_GRAYSCALE)
 
             if gt_mask is None:
-                print(f"    Warning: failed to load GT '{gt_path}', skipping frame")
+                print(f"Warning: failed to load GT '{gt_path}', skipping frame")
                 continue
             if pr_mask is None:
-                print(f"    Warning: failed to load PR '{pr_path}', skipping frame")
+                print(f"Warning: failed to load PR '{pr_path}', skipping frame")
                 continue
 
             vid_ious.append(compute_iou(gt_mask, pr_mask))
@@ -257,12 +257,12 @@ def compute_region_similarity_yto(yto_jpeg_dir, yto_xml_dir, pred_root, frame_id
         if not os.path.exists(jpeg_path):
             jpeg_path = os.path.join(yto_jpeg_dir, f"{frame_id}.png")
             if not os.path.exists(jpeg_path):
-                print(f"  [Warning] JPEG missing: '{frame_id}' → {jpeg_path}. Skipping.")
+                print(f"Warning JPEG missing: '{frame_id}' → {jpeg_path}. Skipping.")
                 continue
 
         img = cv2.imread(jpeg_path)
         if img is None:
-            print(f"  [Warning] Failed to read JPEG: {jpeg_path}. Skipping.")
+            print(f"Warning Failed to read JPEG: {jpeg_path}. Skipping.")
             continue
 
         H, W = img.shape[:2]
@@ -270,24 +270,24 @@ def compute_region_similarity_yto(yto_jpeg_dir, yto_xml_dir, pred_root, frame_id
         # 3) Build GT mask from XML
         xml_path = os.path.join(yto_xml_dir, f"{frame_id}.xml")
         if not os.path.exists(xml_path):
-            print(f"  [Warning] XML missing: '{frame_id}' → {xml_path}. Skipping.")
+            print(f"Warning XML missing: '{frame_id}' → {xml_path}. Skipping.")
             continue
 
         # bbox_xml_to_mask(xml_path, W, H), returns binary mask of shape (H, W)
         gt_mask = bbox_xml_to_mask(xml_path, (H, W))
         if gt_mask is None:
-            print(f"  [Warning] bbox_xml_to_mask failed: {xml_path}. Skipping.")
+            print(f"Warning bbox_xml_to_mask failed: {xml_path}. Skipping.")
             continue
 
         # 4) Load predicted mask PNG
         pr_path = os.path.join(pred_root, "pred_masks", class_name, f"{frame_id}.png")
         if not os.path.exists(pr_path):
-            print(f"  [Warning] PR missing: '{frame_id}' → {pr_path}. Skipping.")
+            print(f"Warning PR missing: '{frame_id}' → {pr_path}. Skipping.")
             continue
 
         pr_mask = cv2.imread(pr_path, cv2.IMREAD_GRAYSCALE)
         if pr_mask is None:
-            print(f"  [Warning] Failed to read PR: {pr_path}. Skipping.")
+            print(f"Warning Failed to read PR: {pr_path}. Skipping.")
             continue
 
         # 4a) Resize to (W, H) if needed
@@ -358,9 +358,11 @@ def compute_boundary_accuracy_yto(yto_jpeg_dir, yto_xml_dir, pred_root, frame_id
     return {"Fmean": Fmean, "per_class": per_class_mean}
 
 
+
+
 if __name__=="__main__":
-    GT   = "Datasets/davis/DAVIS/Annotations_unsupervised/480p"
-    PR   = "outputs/pred_masks"
+    GT = "Datasets/davis/DAVIS/Annotations_unsupervised/480p"
+    PR = "outputs/pred_masks"
     vids = load_vid_list(GT, split="val")
 
     # J (region similarity)
@@ -401,8 +403,8 @@ if __name__=="__main__":
 
     print("=== YTO VAL METRICS ===")
     yto_jpeg_dir = "Datasets/youtube-objects/YTOdevkit/YTO/JPEGImages"
-    yto_xml_dir  = "Datasets/youtube-objects/YTOdevkit/YTO/Annotations"
-    pred_root    = "outputs/yto" 
+    yto_xml_dir = "Datasets/youtube-objects/YTOdevkit/YTO/Annotations"
+    pred_root = "outputs/yto" 
     val_txt = "Datasets/youtube-objects/YTOdevkit/YTO/ImageSets/val.txt"
     with open(val_txt, "r") as f:
         frame_ids = [line.strip() for line in f if line.strip()]
@@ -411,13 +413,13 @@ if __name__=="__main__":
     YJ = compute_region_similarity_yto(yto_jpeg_dir, yto_xml_dir, pred_root, frame_ids)
     print(f"YTO Global J̄ = {YJ['Jmean']:.3f}")
     for cls in sorted(YJ["per_class"].keys()):
-        print(f"  {cls:12s}: J = {YJ['per_class'][cls]:.3f}")
+        print(f"{cls:12s}: J = {YJ['per_class'][cls]:.3f}")
 
     # YTO F (boundary, tol=2)
     YF = compute_boundary_accuracy_yto(yto_jpeg_dir, yto_xml_dir, pred_root, frame_ids, tol=2)
     print(f"\nYTO Global F̄ = {YF['Fmean']:.3f}")
     for cls in sorted(YF["per_class"].keys()):
-        print(f"  {cls:12s}: F = {YF['per_class'][cls]:.3f}")
+        print(f"{cls:12s}: F = {YF['per_class'][cls]:.3f}")
 
     # save to CSV
     yto_csv = "results/yto_metrics.csv"

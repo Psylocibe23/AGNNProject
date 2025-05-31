@@ -52,7 +52,7 @@ def process_davis_videos(cfg, model, device):
     """
     Inference on DAVIS val split and save masks
     """
-    print("\n→ Processing DAVIS-16 validation videos …")
+    print("\nProcessing DAVIS validation videos …")
     N0 = cfg['num_frames_test']
 
     ds = VideoSegDataset(
@@ -118,7 +118,7 @@ def process_davis_videos(cfg, model, device):
             print(f"Saved Davis masks for '{seq_name}' → {seq_out}")
         print("")
 
-    print("✓ DAVIS inference + CRF complete.\n")
+    print("DAVIS inferencecompleted")
 
 
 def process_yto_videos(cfg, model, device):
@@ -143,19 +143,19 @@ def process_yto_videos(cfg, model, device):
 
     for frame_id in frame_ids:
         if "_" not in frame_id:
-            print(f"  [Warning] Unexpected frame_id format: '{frame_id}'. Skipping.")
+            print(f"Warning Unexpected frame_id format: '{frame_id}'. Skipping.")
             continue
         cls_prefix = frame_id.split("_", 1)[0]
 
         jpg_path = os.path.join(yto_root, "JPEGImages", frame_id + ".jpg")
         xml_path = os.path.join(yto_root, "Annotations", frame_id + ".xml")
         if not os.path.isfile(jpg_path):
-            print(f"  [Warning] Missing JPEG '{jpg_path}'.  Skipping '{frame_id}'.")
+            print(f"Warning Missing JPEG '{jpg_path}'.  Skipping '{frame_id}'.")
             continue
 
         bgr = cv2.imread(jpg_path)
         if bgr is None:
-            print(f"  [Error] Failed to read '{jpg_path}'. Skipping.")
+            print(f"Error Failed to read '{jpg_path}'. Skipping.")
             continue
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
         Ho, Wo = rgb.shape[:2]
@@ -187,9 +187,9 @@ def process_yto_videos(cfg, model, device):
 
         save_path = os.path.join(cls_out, f"{frame_id}.png")
         cv2.imwrite(save_path, final_mask)
-        print(f"  → Saved YTO mask: {save_path}")
+        print(f"Saved YTO mask: {save_path}")
 
-    print("\n✓ YouTube-Objects inference + CRF saving complete.\n")
+    print("\nYouTube-Objects inference completed\n")
 
 
 def test():
@@ -197,4 +197,3 @@ def test():
     model, device = load_model(cfg)
     process_davis_videos(cfg, model, device)
     process_yto_videos(cfg, model, device)
-    

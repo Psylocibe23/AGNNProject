@@ -39,14 +39,10 @@ class ConvGRUCell(nn.Module):
 
     def forward(self, x, h_prev):
         """
-        Forward pass for ConvGRUCell.
-
-        Args:
-            x (Tensor):     Input tensor of shape (B, in_channels, H, W).
-            h_prev (Tensor):Previous hidden state of shape (B, hidden_channels, H, W).
-
+        x: input tensor of shape (B, in_channels, H, W)
+        h_prev: previous hidden state of shape (B, hidden_channels, H, W)
         Returns:
-            h_new (Tensor): Updated hidden state of shape (B, hidden_channels, H, W).
+          h_new: updated hidden state of shape (B, hidden_channels, H, W)
         """
         concat = torch.cat([x, h_prev], dim=1)  # (B, in_channels + hidden_channels, H, W)
 

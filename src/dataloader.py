@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
 
+
 class VideoSegDataset(Dataset):
     """
     Video object segmentation dataset loader for AGNN.
@@ -15,8 +16,8 @@ class VideoSegDataset(Dataset):
 
     root_dir/
       JPEGImages/480p/{video}/frame_xxxxx.jpg
-      Annotations/480p/{video}/frame_xxxxx.png
-      ImageSets/{split}.txt         # e.g. train.txt, val.txt
+      Annotations_unsupervised/480p/{video}/frame_xxxxx.png
+      ImageSets/{split}.txt 
     """
     def __init__(self, root_dir, split='train', num_frames=3, frame_size=(473, 473), transform=None, train_mode=True):
         self.root_dir = root_dir
@@ -49,7 +50,7 @@ class VideoSegDataset(Dataset):
                 msk_rel = msk_rel.lstrip('/')
                 img_path = os.path.join(root_dir, img_rel)
                 msk_path = os.path.join(root_dir, msk_rel)
-                vid = img_rel.split('/')[2]               # JPEGImages/480p/<vid>/...
+                vid = img_rel.split('/')[2]         
                 video_dict.setdefault(vid, []).append((img_path, msk_path))
             self.samples = [
                 ([p for p,_ in lst], [q for _,q in lst])
@@ -113,21 +114,21 @@ class VideoSegDataset(Dataset):
             # Load and process the mask
             mask_path = masks[i]
             if mask_path.lower().endswith('.xml'):
-                # --- parse the XML bbox ---
+                # parse the XML bounding box (bbox)
                 tree = ET.parse(mask_path)
                 root = tree.getroot()
                 size = root.find('size')
                 orig_w = int(size.find('width').text)
                 orig_h = int(size.find('height').text)
-                # find object→bndbox
+                # find object→bbox
                 bb = root.find('object').find('bndbox')
                 xmin = int(bb.find('xmin').text)
                 ymin = int(bb.find('ymin').text)
                 xmax = int(bb.find('xmax').text)
                 ymax = int(bb.find('ymax').text)
             
-                # resize coords from original resolution to your frame_size
-                new_w, new_h = self.frame_size[::-1]  # (W,H)
+                # resize coords from original resolution to frame_size
+                new_w, new_h = self.frame_size[::-1]  # (W, H)
                 x_scale = new_w / orig_w
                 y_scale = new_h / orig_h
                 xmin = int(xmin * x_scale)
@@ -138,10 +139,9 @@ class VideoSegDataset(Dataset):
                 # build binary mask
                 m = np.zeros((new_h, new_w), dtype=np.float32)
                 m[ymin:ymax, xmin:xmax] = 1.0
-                mask_tensor = torch.from_numpy(m).unsqueeze(0)  # (1,H,W)
+                mask_tensor = torch.from_numpy(m).unsqueeze(0)  # (1, H, W)
             
             else:
-                # your existing PNG‐based mask loader
                 m = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
                 m = cv2.resize(m, self.frame_size[::-1],
                                interpolation=cv2.INTER_NEAREST)

@@ -95,17 +95,10 @@ class AGNN(nn.Module):
         # Read-out
         masks = []
         for i in range(N):
-            hi = h[:, i]       # (B,hidden,Hf,Wf)
-            vi = v[:, i]       # (B,hidden,Hf,Wf)
+            hi = h[:, i]  # (B,hidden,Hf,Wf)
+            vi = v[:, i]   # (B,hidden,Hf,Wf)
             mask = self.read_out(hi, vi)  # (B,1,Hf,Wf)
             masks.append(mask)
 
-        masks = torch.stack(masks, dim=1)                # (B,N,1,Hf,Wf)
+        masks = torch.stack(masks, dim=1)  # (B,N,1,Hf,Wf)
         return masks
-    
-if __name__=="__main__":
-    model = AGNN(hidden_channels=256, num_iterations=3)
-    with torch.no_grad():
-        dummy = torch.randn(1, 2, 3, 64, 64)  # B=1, N=2 frames, 64×64
-        masks = model(dummy)                   # expect (1,2,1,8,8)
-        print(masks.shape)

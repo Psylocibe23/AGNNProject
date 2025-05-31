@@ -20,7 +20,7 @@ def weighted_bce_loss(preds, targets, eps=1e-6):
     B, _, H, W = targets.shape
     N = H * W
 
-    fg_ratio = targets.view(B, -1).sum(dim=1) # (B,), is one scalar per image
+    fg_ratio = targets.view(B, -1).sum(dim=1) # (B,) is one scalar per image
     eta    = fg_ratio / N 
 
     # Compute weights for foreground and background

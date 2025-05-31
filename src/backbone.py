@@ -3,6 +3,7 @@ import torch.nn as nn
 from torchvision.models.segmentation import deeplabv3_resnet50, DeepLabV3_ResNet50_Weights
 
 
+
 class DeepLabV3Backbone(nn.Module):
     def __init__(self, pretrained=True):
         super().__init__()
@@ -21,8 +22,8 @@ class DeepLabV3Backbone(nn.Module):
 
     def forward(self, x):
         """
-        Given as input a batch of video frames x = (B, C, H, W), returns the nodes embeddings
-        each node is a video frame in our AGNN
+        Given as input a batch of video frames x = (B, C, H, W), returns the nodes embeddings.
+        each node is a video frame in the AGNN
         """
         features = self.backbone(x)['out']  # (B, 2048, H/8, W/8)
         features = self.aspp(features)  # (B, 256, H/8, W/8)

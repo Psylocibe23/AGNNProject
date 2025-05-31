@@ -11,11 +11,14 @@ from agnn import AGNN
 from losses import weighted_bce_loss
 from dataloader import get_dataloader
 
+
+
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+
 
 def train_one_epoch(model, optimizer, train_loader, writer, epoch, device):
     model.train()
@@ -48,6 +51,7 @@ def train_one_epoch(model, optimizer, train_loader, writer, epoch, device):
     writer.add_scalar('train/epoch_loss', avg_loss, epoch)
     return avg_loss
 
+
 @torch.no_grad()
 def validate(model, val_loader, writer, epoch, device):
     model.eval()
@@ -55,14 +59,14 @@ def validate(model, val_loader, writer, epoch, device):
 
     for batch_idx, (frames, masks) in enumerate(val_loader):
         frames = frames.to(device)
-        masks  = masks.to(device)
+        masks = masks.to(device)
 
         preds = model(frames)
         if batch_idx == 0:
             # log the first batch of images & masks
-            writer.add_images('val/frames',   frames[:,0], epoch, dataformats='NCHW')
-            writer.add_images('val/gt_mask',  masks[:,0],  epoch, dataformats='NCHW')
-            writer.add_images('val/pred_mask',preds[:,0],  epoch, dataformats='NCHW')
+            writer.add_images('val/frames', frames[:,0], epoch, dataformats='NCHW')
+            writer.add_images('val/gt_mask', masks[:,0], epoch, dataformats='NCHW')
+            writer.add_images('val/pred_mask',preds[:,0], epoch, dataformats='NCHW')
             writer.flush()
 
         B, N, C, Hf, Wf = preds.shape
@@ -78,8 +82,9 @@ def validate(model, val_loader, writer, epoch, device):
     writer.add_scalar("val/epoch_loss", avg_val_loss, epoch)
     return avg_val_loss
 
+
 def train():
-    # --- load config ---
+    # load config
     with open("configs/default.yaml", 'r') as f:
         cfg = yaml.safe_load(f)
 
@@ -87,7 +92,7 @@ def train():
     device = torch.device(cfg["device"] if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # --- dataloaders ---
+    # dataloaders
     train_loader = get_dataloader(
         root_dir=cfg["davis_root"], split="train",
         batch_size=cfg["train_batch_size"], num_frames=cfg["num_frames_train"],
@@ -102,7 +107,7 @@ def train():
     )
     print(f"Train batches: {len(train_loader)}   Val batches: {len(val_loader)}")
 
-    # --- model & optimizer ---
+    # model & optimizer
     model = AGNN(
         hidden_channels=cfg["model"]["hidden_channels"],
         num_iterations=cfg["model"]["num_iterations"]
@@ -113,7 +118,7 @@ def train():
         weight_decay=float(cfg["optimizer"]["weight_decay"])
     )
 
-    # --- scheduler: linear warmup → MultiStep decay ---
+    # scheduler: linear warmup → MultiStep decay
     warmup_epochs = int(cfg["scheduler"]["warmup_epochs"])
     milestones = [int(x) for x in cfg["scheduler"]["milestones"]]
     gamma = float(cfg["scheduler"]["gamma"])
@@ -132,11 +137,11 @@ def train():
         milestones=[warmup_epochs]
     )
 
-    # --- logging & checkpoints setup ---
+    # logging & checkpoints setup
     writer = SummaryWriter(log_dir=cfg["log_dir"])
     os.makedirs(cfg["save_dir"], exist_ok=True)
 
-    # --- main training loop ---
+    # main training loop
     for epoch in range(1, cfg["max_epochs"] + 1):
         tl = train_one_epoch(model, optimizer, train_loader, writer, epoch, device)
         vl = validate(model, val_loader, writer, epoch, device)
@@ -156,6 +161,3 @@ def train():
             print(f"→ Saved checkpoint: {fname}")
 
     writer.close()
-
-if __name__ == "__main__":
-    train()

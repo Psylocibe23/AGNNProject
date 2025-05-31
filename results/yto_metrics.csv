@@ -1,0 +1,11 @@
+class_name,J_mean,F_mean
+aeroplane,0.315,0.035
+bird,0.409,0.028
+boat,0.506,0.031
+car,0.601,0.051
+cat,0.496,0.028
+cow,0.489,0.042
+dog,0.495,0.031
+horse,0.437,0.023
+motorbike,0.529,0.067
+train,0.427,0.036

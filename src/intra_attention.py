@@ -5,7 +5,7 @@ import torch.nn as nn
 
 class IntraAttention(nn.Module):
     """
-        Intra-Attention module for loop-edge embedding.
+        Intra-Attention module for loop-edge embeddings.
         Given an input x of shape (B, C, H, W), computes
         out = alpha * softmax(f(x) @ h(x).T) @ l(x) + x
         where f, h, l are 1x1 convolutions and alpha is a lernable scalar

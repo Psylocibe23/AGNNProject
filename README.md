@@ -73,7 +73,6 @@ arXiv:2001.06807
 ## Running the Pipeline
 
 **Train (if no checkpoint exists)**  
-```bash
 python main.py
 If `checkpoints/checkpoint_epoch100.pth` is missing, `train()` is invoked.
 

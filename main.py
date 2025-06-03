@@ -18,7 +18,7 @@ def main():
     with open(cfg_path, "r") as f:
         cfg = yaml.safe_load(f)
 
-    # 2) check whether checkpoint exists, if not train the network
+    # 2) check whether checkpoint exists. If not, train the network
     ckpt_rel = cfg["test"]["checkpoint"]  
     ckpt_path = os.path.abspath(ckpt_rel)
     if not os.path.isfile(ckpt_path):

@@ -81,7 +81,7 @@ def load_vid_list(gt_root, split="val"):
 
 def mask2boundary(mask):
     """
-    Given a binary mask (H×W), return its one‐pixel‐wide boundary
+    Given a binary mask (H×W), return its boundary
     """
     # ensure 0/1
     m = (mask > 0).astype(np.uint8)
@@ -113,11 +113,11 @@ def compute_boundary_f(gt_mask: np.ndarray,
     b_gt_d = cv2.dilate(b_gt.astype(np.uint8), se).astype(bool)
     b_pr_d = cv2.dilate(b_pr.astype(np.uint8), se).astype(bool)
 
-    # precision: fraction of predicted boundary pixels that hit ground truth (GT)
+    # precision
     tp_pr = np.logical_and(b_pr, b_gt_d).sum()
     P = tp_pr / b_pr.sum() if b_pr.sum() > 0 else 0.0
 
-    # recall: fraction of GT boundary pixels hit by prediction
+    # recall
     tp_gt = np.logical_and(b_gt, b_pr_d).sum()
     R = tp_gt / b_gt.sum() if b_gt.sum() > 0 else 0.0
 
@@ -246,7 +246,6 @@ def compute_region_similarity_yto(yto_jpeg_dir, yto_xml_dir, pred_root, frame_id
     per_class: Dict[str, List[float]] = {}
 
     for frame_id in frame_ids:
-        # Skip any blank lines or invalid IDs
         if "_" not in frame_id:
             continue
 
@@ -290,7 +289,7 @@ def compute_region_similarity_yto(yto_jpeg_dir, yto_xml_dir, pred_root, frame_id
             print(f"Warning Failed to read PR: {pr_path}. Skipping.")
             continue
 
-        # 4a) Resize to (W, H) if needed
+        # 4a) Resize to (W, H)
         if pr_mask.shape[:2] != (H, W):
             pr_mask = cv2.resize(pr_mask, (W, H), interpolation=cv2.INTER_NEAREST)
 

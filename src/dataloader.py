@@ -75,7 +75,6 @@ class VideoSegDataset(Dataset):
                 # each entry is a (list_of_image_paths, list_of_mask_paths)
                 self.samples.append((imgs, msks))
 
-
         else:
             raise RuntimeError("Unrecognized split format")
 
@@ -120,7 +119,7 @@ class VideoSegDataset(Dataset):
                 size = root.find('size')
                 orig_w = int(size.find('width').text)
                 orig_h = int(size.find('height').text)
-                # find object→bbox
+                # find object - bbox
                 bb = root.find('object').find('bndbox')
                 xmin = int(bb.find('xmin').text)
                 ymin = int(bb.find('ymin').text)

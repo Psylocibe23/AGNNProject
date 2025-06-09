@@ -35,7 +35,7 @@ class ConvGRUCell(nn.Module):
         )
 
         self.sigmoid = nn.Sigmoid()
-        self.tanh    = nn.Tanh()
+        self.tanh = nn.Tanh()
 
     def forward(self, x, h_prev):
         """

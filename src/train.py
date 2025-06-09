@@ -118,7 +118,7 @@ def train():
         weight_decay=float(cfg["optimizer"]["weight_decay"])
     )
 
-    # scheduler: linear warmup → MultiStep decay
+    # scheduler: linear warmup + MultiStep decay
     warmup_epochs = int(cfg["scheduler"]["warmup_epochs"])
     milestones = [int(x) for x in cfg["scheduler"]["milestones"]]
     gamma = float(cfg["scheduler"]["gamma"])

@@ -12,7 +12,6 @@ agnn_env/
 # Datasets / logs / checkpoints
 datasets/
 experiments/
-*.pth
 *.pt
 
 # Environment files

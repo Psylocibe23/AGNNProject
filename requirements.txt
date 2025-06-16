@@ -3,8 +3,6 @@ certifi==2022.12.7
 charset-normalizer==2.1.1
 contourpy==1.3.2
 cycler==0.12.1
-# Editable install with no version control (davis2017==0.1.0)
--e /mnt/c/Users/sprea/Desktop/pythonProject/AGNNProject/davis2017-evaluation
 easydict==1.13
 fonttools==4.57.0
 grpcio==1.71.0
